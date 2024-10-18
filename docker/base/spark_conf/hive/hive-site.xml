@@ -15,17 +15,20 @@
    See the License for the specific language governing permissions and
    limitations under the License.
 --><configuration>
-<property><name>hive.metastore.uris</name><value>thrift://hive-metastore:9083</value></property>
-<property><name>datanucleus.autoCreateSchema</name><value>false</value></property>
-<property><name>javax.jdo.option.ConnectionURL</name><value>jdbc:postgresql://hive-metastore-postgresql/metastore</value></property>
+<property><name>javax.jdo.option.ConnectionURL</name><value>jdbc:postgresql://postgresql:5432/hive</value></property>
 <property><name>javax.jdo.option.ConnectionDriverName</name><value>org.postgresql.Driver</value></property>
-<property><name>javax.jdo.option.ConnectionPassword</name><value>hive</value></property>
-<property><name>javax.jdo.option.ConnectionUserName</name><value>hive</value></property>
+<property><name>javax.jdo.option.ConnectionUserName</name><value>user</value></property>
+<property><name>javax.jdo.option.ConnectionPassword</name><value>pass</value></property>
+<property><name>datanucleus.autoCreateSchema</name><value>true</value></property>    
 <property><name>hive.metastore.uris</name><value>thrift://hive-metastore:9083</value></property>
-<property><name>datanucleus.autoCreateSchema</name><value>false</value></property>
-<property><name>javax.jdo.option.ConnectionURL</name><value>jdbc:postgresql://hive-metastore-postgresql/metastore</value></property>
-<property><name>javax.jdo.option.ConnectionDriverName</name><value>org.postgresql.Driver</value></property>
-<property><name>javax.jdo.option.ConnectionPassword</name><value>hive</value></property>
-<property><name>javax.jdo.option.ConnectionUserName</name><value>hive</value></property>
 <property><name>hive.metastore.warehouse.dir</name><value>/user/hive/warehouse</value></property>
+<property><name>hive.metastore.event.db.notification.api.auth</name><value>false</value></property>
+<property><name>metastore.task.threads.always</name><value>org.apache.hadoop.hive.metastore.events.EventCleanerTask</value></property>
+<property><name>metastore.expression.proxy</name><value>org.apache.hadoop.hive.metastore.DefaultPartitionExpressionProxy</value></property>
+
+<property><name>fs.s3a.access.key</name><value>minio</value></property>
+<property><name>fs.s3a.secret.key</name><value>minio123</value></property>
+<property><name>fs.s3a.connection.ssl.enabled</name><value>false</value></property>
+<property><name>fs.s3a.path.style.access</name><value>true</value></property>
+<property><name>fs.s3a.endpoint</name><value>minio:9000</value></property>
 </configuration>

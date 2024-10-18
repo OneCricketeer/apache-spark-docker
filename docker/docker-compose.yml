@@ -10,12 +10,11 @@ services:
       - ./workspace:/opt/workspace
   spark-master:
     image: wittline/spark-master:3.0.0
-    container_name: spark-master
     ports:
       - 8080:8080
       - 7077:7077
     env_file:
-      - ./base/hadoop/hadoop-hive.env
+      - ./base/hadoop/hadoop.env
     depends_on:
       - hive-server
     volumes:
@@ -24,7 +23,6 @@ services:
       - ./base/spark_conf/hive/hive-site.xml:/usr/bin/spark-3.0.0-bin-hadoop3.2/conf/hive-site.xml
   spark-worker-1:
     image: wittline/spark-worker:3.0.0
-    container_name: spark-worker-1
     depends_on:
       - spark-master    
     environment:
@@ -34,166 +32,147 @@ services:
     ports:
       - 8081:8081
     env_file:
-      - ./base/hadoop/hadoop-hive.env
+      - ./base/hadoop/hadoop.env
     volumes:
       - ./workspace:/opt/workspace
       - ./base/spark_conf/hadoop:/etc/hadoop/conf/
       - ./base/spark_conf/hive/hive-site.xml:/usr/bin/spark-3.0.0-bin-hadoop3.2/conf/hive-site.xml
-  spark-worker-2:
-    image: wittline/spark-worker:3.0.0
-    container_name: spark-worker-2
-    depends_on:
-      - spark-master     
-    environment:
-      - SPARK_MASTER=spark://spark-master:7077      
-      - SPARK_WORKER_CORES=1
-      - SPARK_WORKER_MEMORY=1024m  
-    ports:
-      - 8082:8081
-    env_file:
-      - ./base/hadoop/hadoop-hive.env
-    volumes:
-      - ./workspace:/opt/workspace
-      - ./base/spark_conf/hadoop:/etc/hadoop/conf/
-      - ./base/spark_conf/hive/hive-site.xml:/usr/bin/spark-3.0.0-bin-hadoop3.2/conf/hive-site.xml
+  # spark-worker-2:
+  #   image: wittline/spark-worker:3.0.0
+  #   depends_on:
+  #     - spark-master     
+  #   environment:
+  #     - SPARK_MASTER=spark://spark-master:7077      
+  #     - SPARK_WORKER_CORES=1
+  #     - SPARK_WORKER_MEMORY=1024m  
+  #   ports:
+  #     - 8082:8081
+  #   env_file:
+  #     - ./base/hadoop/hadoop.env
+  #   volumes:
+  #     - ./workspace:/opt/workspace
+  #     - ./base/spark_conf/hadoop:/etc/hadoop/conf/
+  #     - ./base/spark_conf/hive/hive-site.xml:/usr/bin/spark-3.0.0-bin-hadoop3.2/conf/hive-site.xml
   
-  namenode:
-    image: fjardim/namenode_sqoop
-    container_name: namenode
-    hostname: namenode
-    volumes:
-      - ./base/hdfs/namenode:/hadoop/dfs/name
-    environment:
-      - CLUSTER_NAME=test
-    env_file:
-      - ./base/hadoop/hadoop-hive.env
+  minio:
+    container_name: minio
+    image: minio/minio:RELEASE.2021-08-05T22-01-19Z
     ports:
-      - "50070:50070"
-    deploy:
-      resources:
-        limits:
-          memory: 500m
+      - 9000:9000
+      - 9001:9001
+    env_file:
+      - ./base/minio/minio.env
+    entrypoint: sh
+    command: -c 'mkdir -p /data/datalake && minio server /data --console-address ":9001"'
 
-  datanode1:
-    image: fjardim/datanode
-    container_name: datanode1
-    hostname: datanode1
-    volumes:
-      - ./base/hdfs/datanode1:/hadoop/dfs/data
-    env_file:
-      - ./base/hadoop/hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070"
-    depends_on:
-      - namenode
-    ports:
-      - "50075:50075"
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-
-  datanode2:
-    image: fjardim/datanode
-    container_name: datanode2
-    hostname: datanode2
-    volumes:
-      - ./base/hdfs/datanode2:/hadoop/dfs/data
-    env_file:
-      - ./base/hadoop/hadoop-hive.env
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070"
-    depends_on:
-      - namenode
-    ports:
-      - "50080:50075"
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-  
   hive-server:
-    image: fjardim/hive
-    container_name: hive-server
-    hostname: hive_server
+    image: bde2020/hive:2.3.2-postgresql-metastore # fjardim/hive
     env_file:
-      - ./base/hadoop/hadoop-hive.env
+      - ./base/hadoop/hadoop.env
+      - ./base/minio/minio.env
     environment:
-      HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
       SERVICE_PRECONDITION: "hive-metastore:9083"
+      HDFS_CONF_fs_s3a_access_key: minio
+      HDFS_CONF_fs_s3a_secret_key: minio123
     ports:
       - "10000:10000"
     depends_on:
       - hive-metastore
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-  
-  hive-metastore:
-    image: fjardim/hive
-    container_name: hive_metastore
-    hostname: hive_metastore
-    env_file:
-      - ./base/hadoop/hadoop-hive.env
-    command: /opt/hive/bin/hive --service metastore
-    environment:
-      SERVICE_PRECONDITION: "namenode:50070 datanode1:50075 hive-metastore-postgresql:5432"
-    ports:
-      - "9083:9083"
-    depends_on:
-      - hive-metastore-postgresql
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-  
-  hive-metastore-postgresql:
-    image: fjardim/hive-metastore
-    container_name: hive-metastore-postgresql
-    hostname: hive_metastore_postgresql
-    volumes:
-      - ./base/postgresql:/var/lib/postgresql/data
-    depends_on:
-      - datanode1
-      - datanode2
+      - minio
     deploy:
       resources:
         limits:
           memory: 500m
 
-  hue:
-    image: fjardim/hue
-    hostname: hue
-    container_name: hue
+  hive-metastore-init:
+    image: bde2020/hive:2.3.2-postgresql-metastore # fjardim/hive
+    env_file: 
+      - ./base/hadoop/hadoop.env
+    command: /opt/hive/bin/schematool -verbose -dbType postgres -validate  # -initSchema
+  
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore # fjardim/hive
+    # volumes:
+      # - ./util/jars/hadoop-aws-2.7.4.jar:/opt/hadoop-2.7.4/share/hadoop/common/docker-lib/
+      # - ./util/jars/hadoop-aws-2.7.4.jar:/opt/hive/lib/hadoop-aws-2.7.4.jar
+      # - ./util/jars/aws-java-sdk-1.7.4.jar:/opt/hive/lib/aws-java-sdk-1.7.4.jar
+    env_file:
+      - ./base/hadoop/hadoop.env
+      - ./base/minio/minio.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      SERVICE_PRECONDITION: "postgresql:5432"
+      HIVE_SITE_CONF_datanucleus_autoCreateSchema: "true"
+      HADOOP_CLASSPATH: "/opt/hadoop-2.7.4/share/hadoop/tools/lib/*"  # to load hadoop-aws
+      HDFS_CONF_fs_s3a_access_key: minio
+      HDFS_CONF_fs_s3a_secret_key: minio123
+      # JAVA_OPTIONS: "-Daws.accessKeyId=minio -Daws.secretKey=minio123"
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
     ports:
-    - "8888:8888"
-    volumes:
-      - ./base/hue/hue-overrides.ini:/usr/share/hue/desktop/conf/z-hue.ini
+      - "9083:9083"
     depends_on:
-      - "database"
+      - postgresql
+      - hive-metastore-init
     deploy:
       resources:
         limits:
           memory: 500m
   
-  database:
-    image: fjardim/mysql
-    container_name: database
-    hostname: database
+  postgresql:
+    image: postgres:alpine
+    volumes:
+      - ./docker_postgres_init.sql:/docker-entrypoint-initdb.d/docker_postgres_init.sql
+      - ./base/postgresql:/var/lib/postgresql/data
     ports:
-        - "33061:3306"
+      - "15432:5432"
+    restart: always
+    environment:
+      POSTGRES_DB: root
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d hive -U user"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
     deploy:
       resources:
         limits:
           memory: 500m
-    command: mysqld --innodb-flush-method=O_DSYNC --innodb-use-native-aio=OFF --init-file /data/application/init.sql
-    volumes:
-        - ./base/mysql/data:/var/lib/mysql
-        - ./base/mysql/init.sql:/data/application/init.sql
-    environment:
-        MYSQL_ROOT_USER: root
-        MYSQL_ROOT_PASSWORD: secret
-        MYSQL_DATABASE: hue
-        MYSQL_USER: root
-        MYSQL_PASSWORD: secret
+
+  # hue:
+  #   image: fjardim/hue
+  #   hostname: hue
+  #   container_name: hue
+  #   ports:
+  #   - "8888:8888"
+  #   volumes:
+  #     - ./base/hue/hue-overrides.ini:/usr/share/hue/desktop/conf/z-hue.ini
+  #   depends_on:
+  #     - "database"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 500m
+  
+  # database:
+  #   image: fjardim/mysql
+  #   container_name: database
+  #   hostname: database
+  #   ports:
+  #       - "33061:3306"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 500m
+  #   command: mysqld --innodb-flush-method=O_DSYNC --innodb-use-native-aio=OFF --init-file /data/application/init.sql
+  #   volumes:
+  #       - ./base/mysql/data:/var/lib/mysql
+  #       - ./base/mysql/init.sql:/data/application/init.sql
+  #   environment:
+  #       MYSQL_ROOT_USER: root
+  #       MYSQL_ROOT_PASSWORD: secret
+  #       MYSQL_DATABASE: hue
+  #       MYSQL_USER: root
+  #       MYSQL_PASSWORD: secret

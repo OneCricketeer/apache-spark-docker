@@ -1,0 +1,10 @@
+CREATE USER hue WITH PASSWORD 'hue' CREATEDB;
+CREATE USER hive WITH PASSWORD 'hive' CREATEDB;
+CREATE DATABASE hive
+    WITH 
+    OWNER = hive
+    ENCODING = 'UTF8'
+    LC_COLLATE = 'en_US.utf8'
+    LC_CTYPE = 'en_US.utf8'
+    TABLESPACE = pg_default
+    CONNECTION LIMIT = -1;
